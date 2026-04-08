@@ -1,0 +1,13 @@
+{
+    "pcmaintencetools":[
+        {"name":"Everything.exe","path":"downloads/PCMaintenceTools/Everything"}
+    ],
+    "diyimages":[
+        {"name":"Surprise原画.png","path":"downloads/DIYimges/Suprise/Suprise原件.png"},
+        {"name":"GX仓库.png","path":"downloads/DIYimges/OurResources/GX仓库.png"},
+        {"name":"Logo.png","path":"downloads/DIYimges/OurResources/Logo1.png"}
+    ],
+    "animel":[
+        {"name":"MyGO_1.mp4","path":"downloads/Animel/MyGO!!!!!/mygo_1.mp4"}
+    ]
+}
