@@ -6,27 +6,28 @@
     <link rel="icon" href="assets/icon/favicon.ico" sizes="any">
     <link rel="apple-touch-icon" href="assets/icon/apple-touch-icon.png">
     <link rel="stylesheet" href="CSS/main.css">
+    <script id="clerk-init" async crossorigin="anonymous"></script>
+
+    <script>
+        window.addEventListener('load', async () => {
+            const checkClerk = setInterval(async () => {
+                if (window.Clerk) {
+                    clearInterval(checkClerk);
+                    try {
+                        await Clerk.load();
+                        // 登录成功后自动清理 URL 里的尾巴
+                        if (window.location.search.includes('__clerk_db_jwt')) {
+                            window.history.replaceState({}, document.title, window.location.pathname);
+                        }
+                    } catch (err) {
+                        console.error('Clerk 启动失败:', err);
+                    }
+                }
+            }, 100);
+        });
+    </script>
 </head>
 <body>
-    <script 
-  id="clerk-init" 
-  async 
-  crossorigin="anonymous"
-></script>
-
-<script>
-  window.addEventListener('load', async () => {
-    // 等待 Worker 注入 src 后，Clerk SDK 加载完成
-    if (window.Clerk) {
-      await Clerk.load();
-      
-      // 检查是否登录，如果没有登录（理论上 Worker 已经拦截了，这是双重保障）
-      if (!Clerk.user) {
-        // 可以执行登出逻辑或清理
-      }
-    }
-  });
-</script>
     <main class="container">
         <aside class="file-tree">
             <header class="filetree-header">
