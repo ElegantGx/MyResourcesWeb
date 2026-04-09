@@ -8,6 +8,25 @@
     <link rel="stylesheet" href="CSS/main.css">
 </head>
 <body>
+    <script 
+  id="clerk-init" 
+  async 
+  crossorigin="anonymous"
+></script>
+
+<script>
+  window.addEventListener('load', async () => {
+    // 等待 Worker 注入 src 后，Clerk SDK 加载完成
+    if (window.Clerk) {
+      await Clerk.load();
+      
+      // 检查是否登录，如果没有登录（理论上 Worker 已经拦截了，这是双重保障）
+      if (!Clerk.user) {
+        // 可以执行登出逻辑或清理
+      }
+    }
+  });
+</script>
     <main class="container">
         <aside class="file-tree">
             <header class="filetree-header">
