@@ -37,6 +37,7 @@ body {
 }
 .logo {
     display: flex;
+    align-items: center;
     width: 70%;
     height: 100%;
 }
@@ -252,7 +253,7 @@ body {
 }
 .search-container input {
     width: 85%;
-    height: 70%;
+    height: 25px;
     border-radius: 6px;
     border: 1px solid rgba(0, 0, 0, 0.2);
     background-image: url('/assets/icon/filesIcon/search.svg');
