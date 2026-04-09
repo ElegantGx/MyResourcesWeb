@@ -49,65 +49,23 @@
         <section class="file-view">
             <header class="filename-view">
                 <div class="filename-show">
-                    <p>MyGO!!!!!</p>
+                    <p>home</p>
                 </div>
                 <div class="filename-search">
-                    <p><img src="assets/icon/filesIcon/search.svg">搜索</p>
+                    <div class="search-container">
+                        <input type="text" placeholder="搜索" id="fileSearch">
+                    </div>
                 </div>
             </header>
             <div class="gui">
                 <div class="file-gui">
                     <div class="file-item">
-                        <img src="assets/icon/filesIcon/film.svg">
-                        <span>mygo_1 羽丘的神奇女孩.mp4</span>
+                        <img src="assets/icon/filesIcon/folder-closed.svg">
+                        <span>动漫</span>
                     </div>
                     <div class="file-item">
                         <img src="assets/icon/filesIcon/film.svg">
-                        <span>mygo_2.mp4</span>
-                    </div>
-                    <div class="file-item">
-                        <img src="assets/icon/filesIcon/film.svg">
-                        <span>mygo_3.mp4</span>
-                    </div>
-                    <div class="file-item">
-                        <img src="assets/icon/filesIcon/film.svg">
-                        <span>mygo_4.mp4</span>
-                    </div>
-                     <div class="file-item">
-                        <img src="assets/icon/filesIcon/film.svg">
-                        <span>mygo_5.mp4</span>
-                    </div>
-                    <div class="file-item">
-                        <img src="assets/icon/filesIcon/film.svg">
-                        <span>mygo_6.mp4</span>
-                    </div>
-                    <div class="file-item">
-                        <img src="assets/icon/filesIcon/film.svg">
-                        <span>mygo_7.mp4</span>
-                    </div>
-                    <div class="file-item">
-                        <img src="assets/icon/filesIcon/film.svg">
-                        <span>mygo_8.mp4</span>
-                    </div>
-                    <div class="file-item">
-                        <img src="assets/icon/filesIcon/film.svg">
-                        <span>mygo_9.mp4</span>
-                    </div>
-                     <div class="file-item">
-                        <img src="assets/icon/filesIcon/film.svg">
-                        <span>mygo_10.mp4</span>
-                    </div>
-                    <div class="file-item">
-                        <img src="assets/icon/filesIcon/film.svg">
-                        <span>mygo_11.mp4</span>
-                    </div>
-                    <div class="file-item">
-                        <img src="assets/icon/filesIcon/film.svg">
-                        <span>mygo_12.mp4</span>
-                    </div>
-                    <div class="file-item">
-                        <img src="assets/icon/filesIcon/film.svg">
-                        <span>mygo_13.mp4</span>
+                        <span>动漫</span>
                     </div>
                 </div>
                 <div class="download-gui">
@@ -116,9 +74,16 @@
                 </div>
             </div>    
             <footer class="filepath-view">
-                <div class="space"></div>
                 <div class="filepath-main">
-                    <p><img src="assets/icon/filesIcon/hard-drive.svg">'/><img src="assets/icon/filesIcon/folder-open.svg">动漫><img src="assets/icon/filesIcon/folder-open.svg">MyGO!!!!!</p>
+                    <p id="breadcrumb-path">
+                        <span>
+                            <img src="assets/icon/filesIcon/hard-drive.svg">'/
+                        </span>
+                        >
+                        <span>
+                            <img src="assets/icon/filesIcon/folder-open.svg">动漫
+                        </span>
+                    </p>
                 </div>                
             </footer>
         </section>

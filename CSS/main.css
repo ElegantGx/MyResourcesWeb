@@ -42,7 +42,7 @@ body {
 }
 .logo img {
     width: 45px;
-    height: auto;
+    height: 40px;
     cursor: pointer;
     transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1);
     filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.05));
@@ -160,7 +160,7 @@ body {
 .menu-item:hover {
     background-color: rgba(0, 0, 0, 0.05);
 }
-.menu-item.active {
+.menu-item.selected {
     background-color: #E8E8E8;
 }
 .filetree-footer {
@@ -242,15 +242,35 @@ body {
     justify-content: center;
     align-items: center;
 }
-.filename-search p {
+.search-container {
+    position: relative;
+    width: 100%;
+    height: 100%;
     display: flex;
-    width: 80%;
-    justify-content: flex-start;
     align-items: center;
+    justify-content: center;
+}
+.search-container input {
+    width: 85%;
+    height: 70%;
     border-radius: 6px;
-    color: #8d8b8b;
-    border: 1px solid rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(0, 0, 0, 0.2);
+    background-image: url('/assets/icon/filesIcon/search.svg');
+    background-repeat: no-repeat;
+    background-position: 4px; 
+    background-size: 23px;
+    padding: 0 4px 0 30px;
+    font-size: 15px;
+    color: #424242;
+    background-color: rgba(0, 0, 0, 0.02);
     box-shadow: 0 1px 2px rgba(98, 209, 243, 0.521);
+    outline: none;
+    transition: all 0.5s;
+}
+.search-container input:focus {
+    border-color: #007AFF; 
+    background-color: white;
+    box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1);
 }
 .gui {
     display: flex;
@@ -275,10 +295,20 @@ body {
     justify-content: center;
     padding: 10px;
     border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.25, 1, 0.5, 1);
+}
+.file-item:hover {
+    transform: scale(1.2);
+}
+.file-item.selected {
+    background-color: balck;
+    border: 1px solid #7DAAFE;
+    border-radius: 8px;
 }
 .file-item img {
     width: 120px;
-    height: auto;
+    height: 120px;
 }
 .file-item span {
     width: 100%;
@@ -286,6 +316,7 @@ body {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    text-align: center;
 }
 .file-gui::-webkit-scrollbar {
     width: 7px;
@@ -316,11 +347,11 @@ body {
     align-items: center;
     flex-direction: column;
     font-size: 100%;
+    cursor: pointer;
 }
 .download-gui img {
     width: 60%;
     height: auto;
-    cursor: pointer;
     transition: all 0.2s cubic-bezier(0.25, 1, 0.5, 1);
 }
 .download-gui img:hover {
@@ -336,10 +367,32 @@ body {
     height: 7%;
     font-size: 20px;
     align-items: center;
+    justify-content: center;
 }
-.filepath-view p {
-    margin: 25px 5px;
+.filepath-main {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    padding: 0 15px;
 }
-.filepath-view p img {
+#breadcrumb-path {
+    width: 100%;
+    height: 100%;
+}
+#breadcrumb-path span {
+    display: inline-block;
+    margin: 0 4px;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+}
+#breadcrumb-path span img {
     vertical-align: middle;
+}
+#breadcrumb-path span:hover {
+    transform: scale(1.1);
+    border-radius: 3px;
+}
+#breadcrumb-path span:active{
+    transform: scale(0.95);
+    border-radius: 3px;
 }
