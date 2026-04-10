@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>登录</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      min-height: 100dvh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #0f0f0f;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+    #clerk-sign-in {
+      width: 100%;
+      max-width: 420px;
+      padding: 0 16px;
+    }
+  </style>
+</head>
+<body>
+  <div id="clerk-sign-in"></div>
+
+  <script>
+    // Publishable Key 由 Cloudflare Pages 环境变量注入（见下方说明）
+    const PUBLISHABLE_KEY = window.__CLERK_PK__ || '';
+  </script>
+  <script
+    src="https://cdn.jsdelivr.net/npm/@clerk/clerk-js@latest/dist/clerk.browser.js"
+    crossorigin="anonymous"
+  ></script>
+  <script>
+    (async function () {
+      const clerk = new window.Clerk(PUBLISHABLE_KEY);
+      await clerk.load();
+
+      if (clerk.user) {
+        // 已经登录，直接回到主页
+        window.location.replace('/');
+        return;
+      }
+
+      clerk.mountSignIn(document.getElementById('clerk-sign-in'), {
+        afterSignInUrl: '/',
+        afterSignUpUrl: '/',
+      });
+    })();
+  </script>
+</body>
+</html>
