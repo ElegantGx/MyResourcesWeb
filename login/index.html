@@ -5,49 +5,48 @@
     <title>登录</title>
     <link rel="icon" href="assets/icon/favicon.ico" sizes="any">
     <link rel="apple-touch-icon" href="assets/icon/apple-touch-icon.png">
-    <script
-        defer
-        crossorigin="anonymous"
-        src="https://clerk.gxweb.top/npm/@clerk/ui@1/dist/ui.browser.js"
-        type="text/javascript">
-    </script>
-    <script
-        defer
-        crossorigin="anonymous"
-        data-clerk-publishable-key="pk_live_Y2xlcmsuZ3h3ZWIudG9wJA"
-        src="https://clerk.gxweb.top/npm/@clerk/clerk-js@6/dist/clerk.browser.js"
-        type="text/javascript">
-    </script>
 </head>    
-<main>
-    <div id="clerk-auth-container">
-        <p style = "text-align: center; margin-top: 50px; color: #666;">Loading...</p>
-    </div>
-    <section>    
-        <script>
-            // 等待 Clerk 加载完成
-            window.addEventListener("load", async () => {
-                await Clerk.load();
+<div id="app"></div>
 
-                // 获取 URL 中的 redirect_url 参数
-                const params = new URLSearchParams(window.location.search);
-                const redirectUrl = params.get("redirect_url") || "/";
+<script
+  defer
+  crossorigin="anonymous"
+  src="https://clerk.gxweb.top/npm/@clerk/ui@1/dist/ui.browser.js"
+  type="text/javascript">
+</script>
 
-                // 如果用户已登录，直接跳转
-                if (Clerk.user) {
-                    window.location.href = redirectUrl;
-                    return;
-                }
+<script
+  defer
+  crossorigin="anonymous"
+  data-clerk-publishable-key="pk_live_Y2xlcmsuZ3h3ZWIudG9wJA"
+  src="https://clerk.gxweb.top/npm/@clerk/clerk-js@6/dist/clerk.browser.js"
+  type="text/javascript">
+</script>
 
-                // 如果未登录，挂载 Clerk 登录组件
-                Clerk.mountSignIn("#clerk-auth-container", {
-                    // 登录成功后的跳转
-                    afterSignInUrl: redirectUrl,
-                    // 注册成功后的跳转（可选但建议一致）
-                    afterSignUpUrl: redirectUrl
-                });
-            });
-        </script>
-    </section>
+<script>
+  window.addEventListener('load', async function () {
+    await Clerk.load({
+      ui: { ClerkUI: window.__internal_ClerkUICtor },
+    })
+
+    if (Clerk.isSignedIn) {
+      document.getElementById('app').innerHTML = `
+        <div id="user-button"></div>
+      `
+
+      const userButtonDiv = document.getElementById('user-button')
+
+      Clerk.mountUserButton(userButtonDiv)
+    } else {
+      document.getElementById('app').innerHTML = `
+        <div id="sign-in"></div>
+      `
+
+      const signInDiv = document.getElementById('sign-in')
+
+      Clerk.mountSignIn(signInDiv)
+    }
+  })
+</script>
 </main>
 </html>
