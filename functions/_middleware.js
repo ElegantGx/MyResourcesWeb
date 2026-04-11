@@ -1,5 +1,5 @@
 const PUBLIC_PATHS = [
-    "pages/login",
+    "/login",
     "/__clerk",
     "/cdn-cgi/",
 ];
