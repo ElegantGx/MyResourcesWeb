@@ -20,7 +20,10 @@
     </script>
 </head>    
 <main>
-    <div>
+    <div id="clerk-auth-container">
+        <p style = "text-align: center; margin-top: 50px; color: #666;">Loading...</p>
+    </div>
+    <section>    
         <script>
             // 等待 Clerk 加载完成
             window.addEventListener("load", async () => {
@@ -45,6 +48,6 @@
                 });
             });
         </script>
-    </div>
+    </section>
 </main>
 </html>
