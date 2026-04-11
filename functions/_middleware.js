@@ -1,5 +1,5 @@
 const PUBLIC_PATHS = [
-    "/login/",
+    "/login",
     "/assets/",
     "/__clerk",
     "/cdn-cgi/",
