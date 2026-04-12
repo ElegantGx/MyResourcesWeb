@@ -27,7 +27,10 @@ export async function onRequest(context) {
         return next();
     } catch (err) {
         console.error("[Middleware] JWT 验证失败:", err.message);
-        return redirectToLogin(url, true /* clearCookie */);
+        if (isExpired) {
+            return redirectToLogin(url, false);
+        }
+        return redirectToLogin(url, true);
     }
 }
 
@@ -57,7 +60,7 @@ async function verifyJWT(token, pemKey) {
     const now = Math.floor(Date.now() / 1000);
     const LEEWAY = 120; 
     if (payload.exp && (payload.exp + LEEWAY) < now) {
-        throw new Error(`EXPIRED: JWT 确实过期太久了(exp: ${payload.exp}, now: ${now}), leeway: ${LEEWAY})`);
+        throw new Error(`EXPIRED: JWT 过期(exp: ${payload.exp}, now: ${now}), leeway: ${LEEWAY})`);
     }
     const cryptoKey = await importPublicKey(pemKey);
     const encoder = new TextEncoder();
