@@ -1,6 +1,7 @@
 async function testCOS() {
     console.log("Begin....");
     try {
+        await Clerk.load();
         const res = await fetch('/api/get-list');
         const data = await res.json();
         if (data.success) {
