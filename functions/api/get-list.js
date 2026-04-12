@@ -1,442 +1,401 @@
 /**
  * /functions/api/get-list.js
- * Cloudflare Pages Function — 列出腾讯云 COS 对象，并为每个文件生成预签名下载链接
+ * Cloudflare Pages Function — 列出腾讯云 COS 文件并生成预签名下载链接
  *
- * 依赖环境变量:
+ * 依赖环境变量：
  *   COS_SECRET_ID     — 腾讯云 SecretId
- *   COS_SECRET_KEY    — 腾讯云 SecretKey
- *   COS_BUCKET        — 存储桶名称，如 my-bucket-1250000000
+ *   COS_SECRET_KEY    — 腾讯云 SecretKey（不会暴露给前端）
+ *   COS_BUCKET        — 存储桶名，如 myapp-1250000000
  *   COS_REGION        — 地域，如 ap-guangzhou
- *   COS_CUSTOM_DOMAIN — 自定义域名，如 cdn.gxweb.top（不含协议头）
+ *   COS_CUSTOM_DOMAIN — 自定义域名，如 cdn.gxweb.top
  *
- * 前置条件: _middleware.js 已完成 JWT 鉴权，此处不再重复校验。
+ * 前置条件：
+ *   _middleware.js 已完成 JWT (Clerk) 鉴权，此函数无需再做身份验证。
  */
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 工具函数：ArrayBuffer / Hex / Base64 互转
+// 工具函数：ArrayBuffer <-> Hex / Base64
 // ─────────────────────────────────────────────────────────────────────────────
 
 /** ArrayBuffer → 小写十六进制字符串 */
-function bufToHex(buf) {
-  return [...new Uint8Array(buf)]
+function bufToHex(buffer) {
+  return Array.from(new Uint8Array(buffer))
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("");
 }
 
-/** 字符串 → Uint8Array (UTF-8) */
-function strToBytes(str) {
+/** 字符串 → ArrayBuffer (UTF-8) */
+function strToBuf(str) {
   return new TextEncoder().encode(str);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 核心：腾讯云 COS HMAC-SHA1 签名生成
-// 文档参考：https://cloud.tencent.com/document/product/436/7778
+// HMAC-SHA1 via Web Crypto API
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * 使用 Web Crypto API 计算 HMAC-SHA1
- * @param {string} keyStr  密钥字符串
+ * 计算 HMAC-SHA1
+ * @param {string} keyStr  密钥（字符串）或 hex 字符串（当 isHex=true）
  * @param {string} message 待签名消息
- * @returns {Promise<string>} 小写十六进制签名
+ * @param {boolean} isHex  keyStr 是否为 hex 编码的密钥（第二轮签名用）
+ * @returns {Promise<ArrayBuffer>}
  */
-async function hmacSha1Hex(keyStr, message) {
+async function hmacSha1(keyStr, message, isHex = false) {
+  let keyBuf;
+  if (isHex) {
+    // hex 字符串 → Uint8Array
+    const bytes = new Uint8Array(keyStr.length / 2);
+    for (let i = 0; i < keyStr.length; i += 2) {
+      bytes[i / 2] = parseInt(keyStr.slice(i, i + 2), 16);
+    }
+    keyBuf = bytes.buffer;
+  } else {
+    keyBuf = strToBuf(keyStr);
+  }
+
   const key = await crypto.subtle.importKey(
     "raw",
-    strToBytes(keyStr),
+    keyBuf,
     { name: "HMAC", hash: "SHA-1" },
     false,
     ["sign"]
   );
-  const sig = await crypto.subtle.sign("HMAC", key, strToBytes(message));
-  return bufToHex(sig);
+  return crypto.subtle.sign("HMAC", key, strToBuf(message));
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// 腾讯云 COS 签名 v5（Authorization Header 方式）
+// 文档：https://cloud.tencent.com/document/product/436/7778
+// ─────────────────────────────────────────────────────────────────────────────
+
 /**
- * 生成腾讯云 COS 请求签名（Authorization 头部值）
- *
- * ⚠️  关于编码规则（对照 COS FormatString 文档）：
- *   - pathname      : 传入【原始未编码】的 key，如 "/DIY软件/贪吃蛇/file.exe"
- *                     COS FormatString 中路径就是原始 UTF-8，不做 %xx 编码
- *   - header key    : encodeURIComponent 后转小写
- *   - header value  : encodeURIComponent（host 值碰巧无影响，但含特殊字符时必须编码）
- *   - param key     : encodeURIComponent 后转小写
- *   - param value   : encodeURIComponent
+ * 生成腾讯云 COS 请求签名（Authorization 头）
  *
  * @param {object} opts
  * @param {string} opts.secretId
  * @param {string} opts.secretKey
- * @param {string} opts.method        HTTP 方法，小写，如 "get"
- * @param {string} opts.pathname      【原始未编码】请求路径，如 "/DIY软件/file.exe" 或 "/"
- * @param {Record<string,string>} opts.headers  参与签名的请求头（key 需小写）
- * @param {Record<string,string>} opts.params   URL 查询参数（key 需小写）
- * @param {number}  opts.startTime    Unix 时间戳（秒）
- * @param {number}  opts.endTime      Unix 时间戳（秒）
- * @returns {Promise<string>} Authorization 字段完整值
+ * @param {string} opts.method       HTTP 方法，大小写不限，内部自动转小写
+ * @param {string} opts.pathname     URL 路径，如 "/"
+ * @param {object} opts.query        查询参数键值对（均为字符串）
+ * @param {object} opts.headers      参与签名的请求头键值对（键需小写）
+ * @param {number} opts.startTime    Unix 秒（签名起始时间）
+ * @param {number} opts.endTime      Unix 秒（签名结束时间）
+ * @returns {Promise<string>}        完整的 Authorization 字段值
  */
 async function generateCosSignature({
   secretId,
   secretKey,
   method,
   pathname,
+  query = {},
   headers = {},
-  params = {},
   startTime,
   endTime,
 }) {
-  // Step 1 — KeyTime
+  // ① KeyTime
   const keyTime = `${startTime};${endTime}`;
 
-  // Step 2 — SignKey = HMAC-SHA1(SecretKey, KeyTime)
-  const signKey = await hmacSha1Hex(secretKey, keyTime);
+  // ② SignKey = HMAC-SHA1(SecretKey, KeyTime)  →  hex
+  const signKeyBuf = await hmacSha1(secretKey, keyTime, false);
+  const signKey = bufToHex(signKeyBuf);
 
-  // Step 3 — HttpString
-  // COS 规范：key 做 encodeURIComponent 并转小写；value 做 encodeURIComponent
-  // 然后按 key 字典序排列，用 & 连接
-  const sortedHeaderKeys = Object.keys(headers)
-    .map((k) => k.toLowerCase())
-    .sort();
-  const sortedParamKeys = Object.keys(params)
-    .map((k) => k.toLowerCase())
-    .sort();
+  // ③ HttpMethod（小写）
+  const httpMethod = method.toLowerCase();
 
-  const headerStr = sortedHeaderKeys
-    .map(
-      (k) =>
-        `${encodeURIComponent(k)}=${encodeURIComponent(headers[k] ?? headers[k.toUpperCase()] ?? "")}`
-    )
+  // ④ UrlParamList + HttpParameters
+  //    键名小写、字典序排列、encodeURIComponent 编码（RFC3986）
+  const queryEntries = Object.entries(query).map(([k, v]) => [
+    k.toLowerCase(),
+    v,
+  ]);
+  queryEntries.sort(([a], [b]) => a.localeCompare(b));
+  const urlParamList = queryEntries.map(([k]) => k).join(";");
+  const httpParameters = queryEntries
+    .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v ?? "")}`)
     .join("&");
 
-  const paramStr = sortedParamKeys
-    .map(
-      (k) =>
-        `${encodeURIComponent(k)}=${encodeURIComponent(params[k] ?? "")}`
-    )
+  // ⑤ HeaderList + HttpHeaders
+  const headerEntries = Object.entries(headers).map(([k, v]) => [
+    k.toLowerCase(),
+    v,
+  ]);
+  headerEntries.sort(([a], [b]) => a.localeCompare(b));
+  const headerList = headerEntries.map(([k]) => k).join(";");
+  const httpHeaders = headerEntries
+    .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v ?? "")}`)
     .join("&");
 
-  // ✅ pathname 直接使用原始未编码路径（与 COS FormatString 一致）
-  const httpString = [
-    method.toLowerCase(),
-    pathname,       // 原始路径，如 "/DIY软件/贪吃蛇/file.exe"
-    paramStr,
-    headerStr,
-    "",
-  ].join("\n");
+  // ⑥ HttpString（注意末尾有一个空行，即以 \n 结束）
+  const httpString = `${httpMethod}\n${pathname}\n${httpParameters}\n${httpHeaders}\n`;
 
-  // Step 4 — StringToSign
-  const sha1Hash = bufToHex(
-    await crypto.subtle.digest("SHA-1", strToBytes(httpString))
+  // ⑦ StringToSign
+  const httpStringSha1Buf = await crypto.subtle.digest(
+    "SHA-1",
+    strToBuf(httpString)
   );
-  const stringToSign = ["sha1", keyTime, sha1Hash, ""].join("\n");
+  const httpStringSha1 = bufToHex(httpStringSha1Buf);
+  const stringToSign = `sha1\n${keyTime}\n${httpStringSha1}\n`;
 
-  // Step 5 — Signature = HMAC-SHA1(SignKey, StringToSign)
-  const signature = await hmacSha1Hex(signKey, stringToSign);
+  // ⑧ Signature = HMAC-SHA1(SignKey, StringToSign)  →  hex
+  //    注意：第二步 SignKey 已经是 hex 字符串，需作为原始字节使用
+  const signatureBuf = await hmacSha1(signKey, stringToSign, true);
+  const signature = bufToHex(signatureBuf);
 
-  // Step 6 — Authorization 拼装
-  const signedHeaderKeys = sortedHeaderKeys.join(";");
-  const signedParamKeys = sortedParamKeys.join(";");
-
+  // ⑨ 拼装 Authorization
   return (
     `q-sign-algorithm=sha1` +
     `&q-ak=${secretId}` +
     `&q-sign-time=${keyTime}` +
     `&q-key-time=${keyTime}` +
-    `&q-header-list=${signedHeaderKeys}` +
-    `&q-url-param-list=${signedParamKeys}` +
+    `&q-header-list=${headerList}` +
+    `&q-url-param-list=${urlParamList}` +
     `&q-signature=${signature}`
   );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 生成预签名下载 URL（Pre-signed URL）
-// 将签名放在查询参数中，不需要 Authorization 头，有效期由 q-sign-time 控制
+// 生成预签名下载 URL（Pre-signed URL，签名放在 Query String 中）
+// 强制 Content-Disposition: attachment，触发下载而非预览
+// 有效期 30 分钟
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * 为单个对象生成预签名 GET URL
- *
- * 签名用原始 key（不编码），实际 URL 中路径按段编码（保留 /）
- *
  * @param {object} opts
  * @param {string} opts.secretId
  * @param {string} opts.secretKey
- * @param {string} opts.customDomain  如 cdn.gxweb.top（不含 https://）
- * @param {string} opts.key           对象的原始 Key，如 "DIY软件/贪吃蛇/file.exe"
- * @param {number} opts.ttl           有效期（秒），默认 1800
- * @returns {Promise<string>} 完整预签名 URL
+ * @param {string} opts.customDomain  如 cdn.gxweb.top
+ * @param {string} opts.key           对象键，如 "videos/demo.mp4"
+ * @param {number} [opts.ttlSeconds]  有效期（秒），默认 1800（30 分钟）
+ * @returns {Promise<string>}         完整预签名 URL
  */
 async function generatePresignedUrl({
   secretId,
   secretKey,
   customDomain,
   key,
-  ttl = 1800,
+  ttlSeconds = 1800,
 }) {
   const now = Math.floor(Date.now() / 1000);
-  const startTime = now - 60;
-  const endTime = now + ttl;
+  const startTime = now - 60; // 向前偏移 60 秒，容忍时钟偏差
+  const endTime = now + ttlSeconds;
 
-  // 签名用原始路径（UTF-8，不做 %xx 编码）
-  const rawPathname = "/" + key;
-
-  // 实际 URL 中路径按段编码，保留 "/"
-  const encodedPathname =
+  // 对象键作为 URL 路径，需以 "/" 开头，同时对路径各段分别编码
+  const pathname =
     "/" +
     key
+      .replace(/^\/+/, "")
       .split("/")
       .map((seg) => encodeURIComponent(seg))
       .join("/");
 
+  // 强制下载文件名（RFC 5987 UTF-8 编码，处理中文/空格等特殊字符）
   const filename = key.split("/").pop();
+  const encodedFilename = encodeURIComponent(filename);
+  const disposition = `attachment; filename*=UTF-8''${encodedFilename}`;
 
-  // ─── 编码分析（以 Setup_v1.0.4.exe 为例）────────────────────────────────
-  // COS FormatString 期望（解码后）：
-  //   response-content-disposition=attachment; filename*=UTF-8''Setup_v1.0.4.exe
-  //
-  // generateCosSignature 内部会对 param value 做一次 encodeURIComponent：
-  //   encodeURIComponent("attachment; filename*=UTF-8''Setup_v1.0.4.exe")
-  //   → "attachment%3B%20filename%2A%3DUTF-8%27%27Setup_v1.0.4.exe"   ✅ 与 FormatString 一致
-  //
-  // 对于中文文件名（迷途之子.mp4）：
-  //   encodeURIComponent("attachment; filename*=UTF-8''迷途之子.mp4")
-  //   → "attachment%3B%20filename%2A%3DUTF-8%27%27%E8%BF%B7%E9%80%94..."  ✅
-  //
-  // 因此 dispositionValue 传入【原始文件名，不预先编码】即可
-  // ─────────────────────────────────────────────────────────────────────────
-  const dispositionValue = `attachment; filename*=UTF-8''${filename}`;
-
-  const signParams = {
-    "response-content-disposition": dispositionValue,
+  // 参与签名的 query 参数（response-* 参数必须参与签名）
+  const signedQuery = {
+    "response-content-disposition": disposition,
   };
 
-  const signHeaders = { host: customDomain };
-
-  const auth = await generateCosSignature({
+  // 计算签名（Pre-signed URL 签名不包含请求头，headerList 为空字符串）
+  const authorization = await generateCosSignature({
     secretId,
     secretKey,
     method: "get",
-    pathname: rawPathname,
-    headers: signHeaders,
-    params: signParams,
+    pathname: "/" + key.replace(/^\/+/, ""), // 签名用未编码路径
+    query: signedQuery,
+    headers: {}, // Pre-signed URL 不对 headers 签名
     startTime,
     endTime,
   });
 
-  // URL 查询串中 disposition 同样只做一次 encodeURIComponent（与签名保持一致）
+  // 构建最终 URL：签名参数 + 业务参数合并
+  // authorization 本身是 key=val&key=val 形式，直接拼接到 URL
+  const businessParams = new URLSearchParams({
+    "response-content-disposition": disposition,
+  }).toString();
+
   return (
-    `https://${customDomain}${encodedPathname}` +
-    `?response-content-disposition=${encodeURIComponent(dispositionValue)}` +
-    `&${auth}`
+    `https://${customDomain}${pathname}` +
+    `?${authorization}&${businessParams}`
   );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 轻量 XML 解析：从 COS ListBucketResult 中提取文件列表
-// Workers 环境无 DOMParser，改用正则
+// 轻量 XML 解析：从 COS ListObjectsV2 响应提取文件信息
+// Workers 环境无 DOMParser，使用正则处理
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * 解析 COS ListBucketResult XML，返回对象数组
+ * 从 COS XML 响应中提取 <Contents> 列表
  * @param {string} xml
  * @returns {{ key: string, size: number, lastModified: string }[]}
  */
-function parseListBucketXml(xml) {
-  const files = [];
-  // 每个 <Contents> 块
+function parseListObjectsXml(xml) {
+  const items = [];
   const contentsRe = /<Contents>([\s\S]*?)<\/Contents>/g;
-  let match;
-  while ((match = contentsRe.exec(xml)) !== null) {
-    const block = match[1];
-    const key = extractTag(block, "Key");
-    const size = extractTag(block, "Size");
-    const lastModified = extractTag(block, "LastModified");
-    if (key) {
-      files.push({
-        key,
-        size: size ? parseInt(size, 10) : 0,
-        lastModified: lastModified || "",
-      });
-    }
+  let block;
+  while ((block = contentsRe.exec(xml)) !== null) {
+    const inner = block[1];
+    const key = (inner.match(/<Key>([\s\S]*?)<\/Key>/) ?? [])[1] ?? "";
+    const size = parseInt(
+      (inner.match(/<Size>([\s\S]*?)<\/Size>/) ?? [])[1] ?? "0",
+      10
+    );
+    const lastModified =
+      (inner.match(/<LastModified>([\s\S]*?)<\/LastModified>/) ?? [])[1] ?? "";
+
+    // 跳过纯目录占位对象（Key 以 / 结尾且 Size 为 0）
+    if (key.endsWith("/") && size === 0) continue;
+
+    items.push({ key, size, lastModified });
   }
-  return files;
-}
-
-/**
- * 从 XML 片段中提取第一个匹配标签的文本内容，并反转义 XML 实体
- * COS 会对 Key 中的 ' & < > " 做实体编码，必须还原后才能用于签名
- */
-function extractTag(xml, tag) {
-  const re = new RegExp(`<${tag}>([\\s\\S]*?)<\\/${tag}>`);
-  const m = re.exec(xml);
-  if (!m) return null;
-  return unescapeXml(m[1].trim());
-}
-
-/** 反转义 XML 实体 → 原始字符串 */
-function unescapeXml(str) {
-  return str
-    .replace(/&amp;/g,  "&")
-    .replace(/&lt;/g,   "<")
-    .replace(/&gt;/g,   ">")
-    .replace(/&quot;/g, '"')
-    .replace(/&apos;/g, "'");
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// 分页列举 COS 对象（处理超过 1000 个对象的情况）
-// ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * 列举存储桶内所有对象（自动翻页）
- * @param {object} env  Cloudflare 环境变量
- * @param {string} [prefix]  可选前缀过滤
- * @returns {Promise<{ key: string, size: number, lastModified: string }[]>}
- */
-async function listAllObjects(env, prefix = "") {
-  const { COS_SECRET_ID, COS_SECRET_KEY, COS_CUSTOM_DOMAIN } = env;
-  const allFiles = [];
-  let marker = "";
-  let isTruncated = true;
-
-  while (isTruncated) {
-    // 构造查询参数
-    const params = { "max-keys": "1000" };
-    if (prefix) params["prefix"] = prefix;
-    if (marker) params["marker"] = marker;
-
-    // 参数 key 排序后构造查询字符串（用于签名和请求）
-    const sortedParamKeys = Object.keys(params).sort();
-    const queryString = sortedParamKeys
-      .map((k) => `${encodeURIComponent(k)}=${encodeURIComponent(params[k])}`)
-      .join("&");
-
-    const now = Math.floor(Date.now() / 1000);
-    const startTime = now - 60;
-    const endTime = now + 900; // list 操作签名有效期 15 分钟
-
-    const signHeaders = { host: COS_CUSTOM_DOMAIN };
-
-    // params key 已经是小写（max-keys, prefix, marker 均为小写）
-    // 直接传入，generateCosSignature 内部会再做一次 toLowerCase 保险
-    const auth = await generateCosSignature({
-      secretId: COS_SECRET_ID,
-      secretKey: COS_SECRET_KEY,
-      method: "get",
-      pathname: "/",          // 列举请求路径固定为 "/"，无需编码
-      headers: signHeaders,
-      params,                 // { "max-keys": "1000", ... }
-      startTime,
-      endTime,
-    });
-
-    const url = `https://${COS_CUSTOM_DOMAIN}/?${queryString}`;
-
-    const response = await fetch(url, {
-      method: "GET",
-      headers: {
-        Host: COS_CUSTOM_DOMAIN,
-        Authorization: auth,
-      },
-    });
-
-    if (!response.ok) {
-      const errText = await response.text();
-      throw new Error(
-        `COS ListObjects failed: HTTP ${response.status} — ${errText}`
-      );
-    }
-
-    const xml = await response.text();
-
-    // 解析文件列表
-    const files = parseListBucketXml(xml);
-    allFiles.push(...files);
-
-    // 判断是否还有下一页
-    const truncatedMatch = /<IsTruncated>([\s\S]*?)<\/IsTruncated>/.exec(xml);
-    isTruncated =
-      truncatedMatch && truncatedMatch[1].trim().toLowerCase() === "true";
-
-    if (isTruncated) {
-      // 下一页起始 marker = 当前页最后一个 Key
-      const nextMarkerMatch = /<NextMarker>([\s\S]*?)<\/NextMarker>/.exec(xml);
-      if (nextMarkerMatch) {
-        marker = nextMarkerMatch[1].trim();
-      } else if (files.length > 0) {
-        marker = files[files.length - 1].key;
-      } else {
-        break; // 防止死循环
-      }
-    }
-  }
-
-  return allFiles;
+  return items;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Cloudflare Pages Function 入口
 // ─────────────────────────────────────────────────────────────────────────────
 
-export async function onRequestGet({ request, env }) {
-  // 解析可选查询参数：?prefix=xxx
-  const url = new URL(request.url);
-  const prefix = url.searchParams.get("prefix") || "";
+export async function onRequest(context) {
+  const { request, env } = context;
 
-  try {
-    // 1. 列举对象
-    const rawFiles = await listAllObjects(env, prefix);
-
-    // 2. 过滤掉"目录占位符"（Key 以 / 结尾、Size 为 0 通常是伪目录）
-    const files = rawFiles.filter((f) => !f.key.endsWith("/"));
-
-    // 3. 为每个文件生成预签名下载链接（30 分钟有效期）
-    const result = await Promise.all(
-      files.map(async (f) => {
-        const downloadUrl = await generatePresignedUrl({
-          secretId: env.COS_SECRET_ID,
-          secretKey: env.COS_SECRET_KEY,
-          customDomain: env.COS_CUSTOM_DOMAIN,
-          key: f.key,
-          ttl: 1800, // 30 分钟
-        });
-
-        return {
-          key: f.key,
-          // 取文件名（最后一段路径）
-          name: f.key.split("/").pop(),
-          size: f.size,
-          lastModified: f.lastModified,
-          downloadUrl, // 预签名链接，不含任何服务端密钥
-        };
-      })
-    );
-
-    return new Response(JSON.stringify({ success: true, files: result }), {
-      status: 200,
-      headers: {
-        "Content-Type": "application/json",
-        // 短暂缓存：列表数据 30 秒内可复用，但不超过预签名链接有效期
-        "Cache-Control": "private, max-age=30",
-      },
-    });
-  } catch (err) {
-    console.error("[get-list] Error:", err);
-    return new Response(
-      JSON.stringify({ success: false, error: err.message }),
-      {
-        status: 500,
-        headers: { "Content-Type": "application/json" },
-      }
-    );
-  }
-}
-
-// 拒绝非 GET 方法
-export async function onRequest({ request, next }) {
+  // 只接受 GET 请求
   if (request.method !== "GET") {
     return new Response(JSON.stringify({ error: "Method Not Allowed" }), {
       status: 405,
       headers: { "Content-Type": "application/json" },
     });
   }
-  return next();
+
+  // 读取环境变量
+  const secretId = env.COS_SECRET_ID;
+  const secretKey = env.COS_SECRET_KEY;
+  const bucket = env.COS_BUCKET;           // e.g. myapp-1250000000
+  const region = env.COS_REGION;           // e.g. ap-guangzhou（备用，当前未直接使用）
+  const customDomain = env.COS_CUSTOM_DOMAIN; // e.g. cdn.gxweb.top
+
+  if (!secretId || !secretKey || !bucket || !region || !customDomain) {
+    return new Response(
+      JSON.stringify({ error: "Server misconfiguration: missing env vars" }),
+      { status: 500, headers: { "Content-Type": "application/json" } }
+    );
+  }
+
+  // 可选查询参数：prefix（模拟目录）、max（每页数量上限）
+  const reqUrl = new URL(request.url);
+  const prefix = reqUrl.searchParams.get("prefix") ?? "";
+  const maxKeys = Math.min(
+    parseInt(reqUrl.searchParams.get("max") ?? "200", 10),
+    1000
+  );
+
+  try {
+    // ── 步骤 1：构造 COS List Objects V2 请求 ─────────────────────────────
+
+    const cosHost = customDomain; // 使用绑定的自定义域名
+    const pathname = "/";
+    const now = Math.floor(Date.now() / 1000);
+    const startTime = now - 60;
+    const endTime = now + 900; // List 签名有效 15 分钟
+
+    // 构造查询参数
+    const query = {
+      "list-type": "2",
+      "max-keys": String(maxKeys),
+    };
+    if (prefix) query["prefix"] = prefix;
+
+    // 参与签名的请求头（Host 必须签名）
+    const signedHeaders = { host: cosHost };
+
+    const authorization = await generateCosSignature({
+      secretId,
+      secretKey,
+      method: "get",
+      pathname,
+      query,
+      headers: signedHeaders,
+      startTime,
+      endTime,
+    });
+
+    // 拼接完整请求 URL
+    const cosUrl = `https://${cosHost}${pathname}?${new URLSearchParams(query).toString()}`;
+
+    // ── 步骤 2：请求 COS ──────────────────────────────────────────────────
+
+    const cosResp = await fetch(cosUrl, {
+      method: "GET",
+      headers: {
+        Host: cosHost,
+        Authorization: authorization,
+      },
+    });
+
+    if (!cosResp.ok) {
+      const errBody = await cosResp.text();
+      console.error("[get-list] COS returned error:", cosResp.status, errBody);
+      return new Response(
+        JSON.stringify({ error: "Failed to fetch file list from COS" }),
+        { status: 502, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    const xmlText = await cosResp.text();
+
+    // ── 步骤 3：解析 XML ──────────────────────────────────────────────────
+
+    const rawItems = parseListObjectsXml(xmlText);
+
+    // ── 步骤 4：为每个文件生成预签名下载链接 ─────────────────────────────
+
+    const files = await Promise.all(
+      rawItems.map(async (item) => {
+        const downloadUrl = await generatePresignedUrl({
+          secretId,
+          secretKey,
+          customDomain,
+          key: item.key,
+          ttlSeconds: 1800, // 30 分钟
+        });
+
+        const filename = item.key.split("/").pop();
+        const ext = filename.includes(".")
+          ? filename.split(".").pop().toLowerCase()
+          : "";
+
+        // 脱敏输出：只返回必要字段，不泄露 SecretKey、完整 bucket 信息
+        return {
+          key: item.key,      // 对象完整路径（前端可用于再次请求）
+          filename,           // 纯文件名
+          ext,                // 扩展名（方便前端图标渲染）
+          size: item.size,    // 字节数
+          lastModified: item.lastModified, // ISO 8601
+          downloadUrl,        // 预签名链接，30 分钟有效，强制下载
+        };
+      })
+    );
+
+    // ── 步骤 5：返回 JSON ─────────────────────────────────────────────────
+
+    return new Response(
+      JSON.stringify({ files, total: files.length }),
+      {
+        status: 200,
+        headers: {
+          "Content-Type": "application/json",
+          // 不缓存响应，保证每次都拿到新鲜的预签名链接
+          "Cache-Control": "no-store",
+        },
+      }
+    );
+  } catch (err) {
+    console.error("[get-list] Unexpected error:", err);
+    return new Response(
+      JSON.stringify({ error: "Internal Server Error" }),
+      { status: 500, headers: { "Content-Type": "application/json" } }
+    );
+  }
 }
