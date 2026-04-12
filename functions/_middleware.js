@@ -27,6 +27,7 @@ export async function onRequest(context) {
         return next();
     } catch (err) {
         console.error("[Middleware] JWT 验证失败:", err.message);
+        console.log(`[Middleware Check] 触发重定向判定! 路径: ${pathname}, 原因: ${err.message}`);
         const isExpired = err.message.includes("EXPIRED");
         if (isExpired) {
             return redirectToLogin(url, false);
