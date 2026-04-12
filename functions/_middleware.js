@@ -55,8 +55,9 @@ async function verifyJWT(token, pemKey) {
     const [headerB64, payloadB64, signatureB64] = parts;
     const payload = JSON.parse(base64UrlDecode(payloadB64));
     const now = Math.floor(Date.now() / 1000);
-    if (payload.exp && payload.exp < now) {
-        throw new Error(`JWT 已过期(exp: ${payload.exp}, now: ${now})`);
+    const LEEWAY = 120; 
+    if (payload.exp && (payload.exp + LEEWAY) < now) {
+        throw new Error(`EXPIRED: JWT 确实过期太久了(exp: ${payload.exp}, now: ${now}), leeway: ${LEEWAY})`);
     }
     const cryptoKey = await importPublicKey(pemKey);
     const encoder = new TextEncoder();
