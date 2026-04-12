@@ -172,14 +172,13 @@ async function generatePresignedUrl({
   ttl = 1800,
 }) {
   const now = Math.floor(Date.now() / 1000);
-  const startTime = now - 60; // 允许 60 秒时钟偏差
+  const startTime = now - 60;
   const endTime = now + ttl;
 
-  // ✅ 签名用原始路径（与 COS FormatString 保持一致）
+  // 签名用原始路径（UTF-8，不做 %xx 编码）
   const rawPathname = "/" + key;
 
-  // ✅ 实际请求 URL 中路径按段做 encodeURIComponent，保留 "/"
-  //    这样浏览器/fetch 才能正确发出请求
+  // 实际 URL 中路径按段编码，保留 "/"
   const encodedPathname =
     "/" +
     key
@@ -187,22 +186,36 @@ async function generatePresignedUrl({
       .map((seg) => encodeURIComponent(seg))
       .join("/");
 
-  // Host 参与签名
+  // ✅ 强制下载：response-content-disposition 必须同时出现在签名参数和 URL 查询串中
+  // 文件名取 key 最后一段，encodeURIComponent 处理中文/特殊字符
+  const filename = key.split("/").pop();
+  const disposition = `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`;
+
+  // 参与签名的查询参数（key 小写，字典序）
+  const signParams = {
+    "response-content-disposition": disposition,
+  };
+
   const signHeaders = { host: customDomain };
 
   const auth = await generateCosSignature({
     secretId,
     secretKey,
     method: "get",
-    pathname: rawPathname,   // ← 原始路径用于签名
+    pathname: rawPathname,
     headers: signHeaders,
-    params: {},
+    params: signParams,
     startTime,
     endTime,
   });
 
-  // 返回 URL 使用编码后的路径，签名附在查询参数中
-  return `https://${customDomain}${encodedPathname}?${auth}`;
+  // 构造最终 URL：编码路径 + disposition 参数 + 签名
+  const dispositionEncoded = encodeURIComponent(disposition);
+  return (
+    `https://${customDomain}${encodedPathname}` +
+    `?response-content-disposition=${dispositionEncoded}` +
+    `&${auth}`
+  );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -236,11 +249,25 @@ function parseListBucketXml(xml) {
   return files;
 }
 
-/** 从 XML 片段中提取第一个匹配标签的文本内容 */
+/**
+ * 从 XML 片段中提取第一个匹配标签的文本内容，并反转义 XML 实体
+ * COS 会对 Key 中的 ' & < > " 做实体编码，必须还原后才能用于签名
+ */
 function extractTag(xml, tag) {
   const re = new RegExp(`<${tag}>([\\s\\S]*?)<\\/${tag}>`);
   const m = re.exec(xml);
-  return m ? m[1].trim() : null;
+  if (!m) return null;
+  return unescapeXml(m[1].trim());
+}
+
+/** 反转义 XML 实体 → 原始字符串 */
+function unescapeXml(str) {
+  return str
+    .replace(/&amp;/g,  "&")
+    .replace(/&lt;/g,   "<")
+    .replace(/&gt;/g,   ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'");
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
