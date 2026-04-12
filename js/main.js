@@ -15,4 +15,15 @@ async function testCOS() {
         console.error("请求失败, 检查_middleware.js相关", e);
     }
 }
-testCOS();
+const start = () => {
+    // 检查 Clerk 是否已经由 index.html 的脚本加载
+    if (window.Clerk) {
+        // 如果已经有了，直接执行
+        testCOS();
+    } else {
+        // 如果还没有，等待 100ms 后重试
+        setTimeout(start, 100);
+    }
+};
+
+start();
