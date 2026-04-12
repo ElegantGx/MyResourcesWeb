@@ -186,14 +186,26 @@ async function generatePresignedUrl({
       .map((seg) => encodeURIComponent(seg))
       .join("/");
 
-  // ✅ 强制下载：response-content-disposition 必须同时出现在签名参数和 URL 查询串中
-  // 文件名取 key 最后一段，encodeURIComponent 处理中文/特殊字符
   const filename = key.split("/").pop();
-  const disposition = `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`;
 
-  // 参与签名的查询参数（key 小写，字典序）
+  // ─── 编码分析（以 Setup_v1.0.4.exe 为例）────────────────────────────────
+  // COS FormatString 期望（解码后）：
+  //   response-content-disposition=attachment; filename*=UTF-8''Setup_v1.0.4.exe
+  //
+  // generateCosSignature 内部会对 param value 做一次 encodeURIComponent：
+  //   encodeURIComponent("attachment; filename*=UTF-8''Setup_v1.0.4.exe")
+  //   → "attachment%3B%20filename%2A%3DUTF-8%27%27Setup_v1.0.4.exe"   ✅ 与 FormatString 一致
+  //
+  // 对于中文文件名（迷途之子.mp4）：
+  //   encodeURIComponent("attachment; filename*=UTF-8''迷途之子.mp4")
+  //   → "attachment%3B%20filename%2A%3DUTF-8%27%27%E8%BF%B7%E9%80%94..."  ✅
+  //
+  // 因此 dispositionValue 传入【原始文件名，不预先编码】即可
+  // ─────────────────────────────────────────────────────────────────────────
+  const dispositionValue = `attachment; filename*=UTF-8''${filename}`;
+
   const signParams = {
-    "response-content-disposition": disposition,
+    "response-content-disposition": dispositionValue,
   };
 
   const signHeaders = { host: customDomain };
@@ -209,11 +221,10 @@ async function generatePresignedUrl({
     endTime,
   });
 
-  // 构造最终 URL：编码路径 + disposition 参数 + 签名
-  const dispositionEncoded = encodeURIComponent(disposition);
+  // URL 查询串中 disposition 同样只做一次 encodeURIComponent（与签名保持一致）
   return (
     `https://${customDomain}${encodedPathname}` +
-    `?response-content-disposition=${dispositionEncoded}` +
+    `?response-content-disposition=${encodeURIComponent(dispositionValue)}` +
     `&${auth}`
   );
 }
