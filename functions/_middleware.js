@@ -1,7 +1,7 @@
 import { createClerkClient } from "@clerk/backend";
 
 export async function onRequest(context) {
-    const { request, env, next, data } = context;
+    const { request, env, next } = context;
     const url = new URL(request.url);
     const pathname = url.pathname;
     
@@ -16,24 +16,33 @@ export async function onRequest(context) {
 
     try {
         const authResult = await clerkClient.authenticateRequest(request);
-        if (authResult.status == "signed-in") {
-            return next();
+        switch(authResult.status) {
+            case "signed-in":
+                return next();
+            
+            case "handshake":
+                return new Response(null, {
+                    status:307,
+                    headers:authResult.headers,
+                });
+            
+            case "signed-out":
+                return handleUnauthenticated(pathname, url, request);   
+            
+            default:
+                console.error("未知认证:", authResult.status);
+                return handleUnauthenticated(pathname, url, request);    
         }
-        throw new Error("Unauthenticated");
-    } catch (_err) {
-        if (pathname.startsWith("/api/")) {
-            return new Response(
-                JSON.stringify({ error: "Unauthorized", message: "Authentication required." }),
-                {
-                    status: 401,
-                    headers: { "Content-Type": "application/json" },
-                }
-            );
-        }
-        const redirectUrl = encodeURIComponent(request.url);
-        return Response.redirect(
-            `${url.origin}/login?redirect_url=${redirectUrl}`,
-            302
-        );
+    } catch (err) {
+        console.error("_middleware error:", err);
+        return handleUnauthenticated(pathname, url, request);
     }
+}
+
+function handleUnauthenticated(pathname, url, request) {
+    const redirectPath = encodeURIComponent(url.pathname + url.search);
+    return Response.redirect(
+        `${url.origin}/login?redirect_url=${redirectPath}`,
+        302
+    );
 }
