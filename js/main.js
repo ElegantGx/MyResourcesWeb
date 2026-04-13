@@ -9,7 +9,7 @@ async function testCOS() {
             console.log("Successful.")
         }
         else {
-            console.error("检查get-list.js相关", e);
+            console.error("检查get-list.js相关", data);
         }
     } catch(e) {
         console.error("请求失败, 检查_middleware.js相关", e);

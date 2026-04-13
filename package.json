@@ -1,0 +1,17 @@
+{
+  "name": "ourresources",
+  "version": "1.0.0",
+  "description": "这是我自己做的资源下载网站。",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "@clerk/backend": "^3.2.8",
+    "cos-nodejs-sdk-v5": "^2.15.4"
+  }
+}
