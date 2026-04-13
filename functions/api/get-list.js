@@ -1,5 +1,6 @@
-import "node:util";
-import COS from "cos-nodejs-sdk-v5";
+import { createRequire } from "module";
+const require = createRequire(import.meta.url);
+const COS = require("cos-nodejs-sdk-v5");
 
 export async function onRequest(context) {
     const { env, data } = context;
