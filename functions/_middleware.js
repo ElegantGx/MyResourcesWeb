@@ -17,7 +17,6 @@ export async function onRequest(context) {
     try {
         const authResult = await clerkClient.authenticateRequest(request);
         if (authResult.status == "signed-in") {
-            data.auth = authResult.toAuth();
             return next();
         }
         throw new Error("Unauthenticated");
