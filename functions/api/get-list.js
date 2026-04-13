@@ -1,3 +1,4 @@
+import "node:util";
 import COS from "cos-nodejs-sdk-v5";
 
 export async function onRequest(context) {
