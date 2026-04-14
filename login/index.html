@@ -36,9 +36,6 @@
           <p>Loading...</p>
         </div>
       `
-      const urlParams = new URLSearchParams(window.location.search);
-      const redirectUrl = urlParams.get('redirect_url') || '/';
-      window.location.href = decodeURIComponent(redirectUrl);
     } else {
       document.getElementById('app').innerHTML = `
         <div id="sign-in"></div>
