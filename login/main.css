@@ -10,3 +10,13 @@
     height: 500px;
     width: auto;
 }
+.loadingPage {
+    display: flex;
+    flex-direction: column;
+    text-align: center;
+    font-size: x-large;
+}
+.loadingPage img {
+    width: 50px;
+    height: auto;
+}

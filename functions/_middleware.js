@@ -5,7 +5,7 @@ export async function onRequest(context) {
     const url = new URL(request.url);
     const pathname = url.pathname;
     
-    if (pathname.startsWith("/login") || pathname.startsWith("/assets/") || pathname.includes("__clerk")) {
+    if (pathname.startsWith("/login") || pathname.startsWith("/assets/login/") || pathname.includes("__clerk")) {
         return next();
     }
 

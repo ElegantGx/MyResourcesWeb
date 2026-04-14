@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <title>登录</title>
-    <link rel="icon" href="/assets/icon/favicon.ico" sizes="any">
-    <link rel="apple-touch-icon" href="/assets/icon/apple-touch-icon.png">
+    <link rel="icon" href="/assets/login/favicon.ico" sizes="any">
+    <link rel="apple-touch-icon" href="/assets/login/apple-touch-icon.png">
     <link rel="stylesheet" href="main.css">
 </head>    
 <div id="app"></div>
@@ -29,25 +29,20 @@
     await Clerk.load({
       ui: { ClerkUI: window.__internal_ClerkUICtor },
     })
-
     if (Clerk.isSignedIn) {
       document.getElementById('app').innerHTML = `
-        <div id="user-button"></div>
+        <div id="loadingPage">
+          <img src="/assets/login/loader.svg">
+          <p>Loading...</p>
+        </div>
       `
-
-      const userButtonDiv = document.getElementById('user-button')
-
-      Clerk.mountUserButton(userButtonDiv)
     } else {
       document.getElementById('app').innerHTML = `
         <div id="sign-in"></div>
       `
-
       const signInDiv = document.getElementById('sign-in')
-
       Clerk.mountSignIn(signInDiv)
     }
   })
 </script>
-</main>
 </html>
