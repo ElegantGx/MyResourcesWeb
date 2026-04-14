@@ -18,13 +18,14 @@ export async function onRequest(context) {
         const authResult = await clerkClient.authenticateRequest(request);
         switch(authResult.status) {
             case "signed-in":
-                return next();
+                const response = await next();
+                authResult.headers.forEach((value, key) => {
+                    response.headers.append(key, value);
+                });
+                return response;
             
             case "handshake":
-                return new Response(null, {
-                    status:307,
-                    headers:authResult.headers,
-                });
+                return authResult.toResponse();
             
             case "signed-out":
                 return handleUnauthenticated(pathname, url, request);   
