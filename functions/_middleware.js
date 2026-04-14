@@ -50,6 +50,6 @@ function handleUnauthenticated(pathname, url, request) {
     const redirectPath = encodeURIComponent(url.pathname + url.search);
     return Response.redirect(
         `${url.origin}/login?redirect_url=${redirectPath}`,
-        302
+        307
     );
 }
