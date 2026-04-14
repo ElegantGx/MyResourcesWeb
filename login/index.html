@@ -38,8 +38,11 @@
       `
       const urlParams = new URLSearchParams(window.location.search);
       const redirectUrl = urlParams.get('redirect_url') || '/';
-      window.location.href = decodeURIComponent(redirectUrl);
-    } else {
+      setTimeout(() => {
+        window.location.href = decodeURIComponent(redirectUrl);
+      }, 15000);
+    } 
+    else {
       document.getElementById('app').innerHTML = `
         <div id="sign-in"></div>
       `
