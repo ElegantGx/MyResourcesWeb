@@ -20,9 +20,14 @@ export async function onRequest(context) {
             case "signed-in":
                 const originalResponse = await next();
                 const response = new Response(originalResponse.body, originalResponse);
-                authResult.headers.forEach((value, key) => {
-                    response.headers.append(key, value);
-                });
+                const newHeaders = authResult.headers;
+                if (newHeaders) {
+                    newHeaders.forEach((value, key) => {
+                        if (key.toLowerCase() === "set-cookie") {
+                            response.headers.append(key, value);
+                        }           
+                    });
+                }
                 return response;
             
             case "handshake":
