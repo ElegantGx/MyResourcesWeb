@@ -13,10 +13,12 @@
 .loadingPage {
     display: flex;
     flex-direction: column;
-    text-align: center;
-    font-size: x-large;
+    justify-content: center;
+    align-items: center;
+    font-size: xx-large;
 }
 .loadingPage img {
-    width: 50px;
+    width: 60px;
     height: auto;
+    margin-bottom: 30px;
 }
