@@ -5,7 +5,7 @@ export async function onRequest(context) {
     const url = new URL(request.url);
     const pathname = url.pathname;
     
-    if (pathname.startsWith("/login") || pathname.startsWith("/assets/")) {
+    if (pathname.startsWith("/login") || pathname.startsWith("/assets/") || pathname.includes("__clerk")) {
         return next();
     }
 
@@ -18,7 +18,8 @@ export async function onRequest(context) {
         const authResult = await clerkClient.authenticateRequest(request);
         switch(authResult.status) {
             case "signed-in":
-                const response = await next();
+                const originalResponse = await next();
+                const response = new Response(originalResponse.body, originalResponse);
                 authResult.headers.forEach((value, key) => {
                     response.headers.append(key, value);
                 });
