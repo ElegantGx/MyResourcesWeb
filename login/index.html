@@ -33,14 +33,14 @@
       document.getElementById('app').innerHTML = `
         <div id="loadingPage">
           <img src="/assets/login/loader.svg">
-          <p>Loading...</p>
+          <p>Loading<span class="dots"></span></p>
         </div>
       `
       const urlParams = new URLSearchParams(window.location.search);
       const redirectUrl = urlParams.get('redirect_url') || '/';
       setTimeout(() => {
         window.location.href = decodeURIComponent(redirectUrl);
-      }, 1500000000000);
+      }, 15000000000000);
     } 
     else {
       document.getElementById('app').innerHTML = `
