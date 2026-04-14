@@ -1,4 +1,3 @@
-await window.Clerk.load();
 const response = await fetch('https://api.gxweb.top/get-list', {
     credentials: 'include'
 });
