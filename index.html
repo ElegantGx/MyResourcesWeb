@@ -24,7 +24,7 @@
 </head>
 <body>
     <script type="module" src="js/main.js"></script>
-    <main class="container" v-cloak>
+    <main class="container">
         <aside class="file-tree">
             <header class="filetree-header">
                 <div class="logo">
@@ -42,7 +42,7 @@
                         <li class="menu-item"><a href="pages/about.html"><img src="assets/icon/filesIcon/info.svg">关于</a></li>
                     </ul>
                 </div>
-                <div class="filetree-tree">
+                <div class="filetree-tree"  v-cloak>
                     <p>资源浏览</p>
                     <ul>
                         <li 
@@ -65,7 +65,7 @@
         </aside>
         <section class="file-view">
             <header class="filename-view">
-                <div class="filename-show">
+                <div class="filename-show" v-cloak>
                     <p>{{ currentPath ? getFileName(currentPath) : 'Home' }}</p>
                 </div>
                 <div class="filename-search">
@@ -75,7 +75,7 @@
                 </div>
             </header>
             <div class="gui">
-                <div class="file-gui">
+                <div class="file-gui"  v-cloak>
                     <div 
                         v-for="theFile in theFiles" 
                         :key="theFile.path"
@@ -93,7 +93,7 @@
             </div>    
             <footer class="filepath-view">
                 <div class="filepath-main">
-                    <p id="breadcrumb-path">
+                    <p id="breadcrumb-path"  v-cloak>
                         <template v-for="(thePath, index) in thePaths" :key="thePath.path">
                             <span @click="gotoPath(thePath.path)">
                                 <img :src="index === 0 ? 'assets/icon/filesIcon/hard-drive.svg' : 'assets/icon/filesIcon/folder-open.svg'">
