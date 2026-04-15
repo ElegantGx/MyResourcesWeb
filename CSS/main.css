@@ -8,6 +8,9 @@ body {
     margin: 0;
     background-color: white;
 }
+[v-cloak] {
+    display: none;
+}
 .container {
     font-family: -apple-system, BlinkMacSystemFont, system-ui, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1), 0 30px 80px rgba(0, 0, 0, 0.15);
