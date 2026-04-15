@@ -38,7 +38,11 @@ async function bootstrap() {
             const gotoFolder = (path) => {
                 currentPath.value = path;
             }
-            return {theFolders, gotoFolder, currentPath};
+            const getPathname = (pathKey) => {
+                const pathname = pathKey.slice(0, -1);
+                return pathname;
+            }
+            return {theFolders, gotoFolder, currentPath, getPathname};
         }
     });
     app.mount('.container');
