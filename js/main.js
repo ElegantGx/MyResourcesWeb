@@ -36,7 +36,8 @@ async function bootstrap() {
             });
             return {theFolders};
         }
-    })
+    });
+    app.mount('.container');
 }
 
 bootstrap();
