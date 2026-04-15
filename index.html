@@ -49,7 +49,7 @@
                         <li 
                             v-for="theFolder in theFolders" 
                             :key="theFolder.key"
-                            :class="['menu-item', { init: currentPath === theFolder.key }]"
+                            :class="['menu-item', { selected: currentPath === theFolder.key }]"
                             @click="gotoFolder(theFolder.key)"
                         >
                             {{ theFolder.name }}
