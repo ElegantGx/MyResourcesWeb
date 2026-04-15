@@ -36,6 +36,7 @@ async function bootstrap() {
                     }))
                     .value();
             });
+            console.log(theFolders);
             return {theFolders, gotoFolder, currentPath};
         }
     });
