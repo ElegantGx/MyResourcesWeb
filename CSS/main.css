@@ -164,6 +164,9 @@ body {
 .menu-item.selected {
     background-color: #E8E8E8;
 }
+.menu-item.init {
+    background-color: rgba(0, 0, 0, 0.03);
+}
 .filetree-footer {
     display: flex;
     width: 100%;
