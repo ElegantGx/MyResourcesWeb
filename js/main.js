@@ -24,6 +24,8 @@ async function bootstrap() {
     const app = createApp ({
         setup() {
             const rawData = ref(filesList);
+            const currentPath = ref('');
+            const gotoFolder = (path) => console.log('进入文件夹:', path);
             const theFolders = computed(() => {
                 return _.chain(rawData.value)
                     .filter(item => item.size === '0')
@@ -34,7 +36,7 @@ async function bootstrap() {
                     }))
                     .value();
             });
-            return {theFolders};
+            return {theFolders, gotoFolder, currentPath};
         }
     });
     app.mount('.container');
