@@ -29,7 +29,7 @@ async function bootstrap() {
             const gotoFolder = (path) => console.log('进入文件夹:', path);
             const theFolders = computed(() => {
                 return _.chain(rawData.value)
-                    .filter(item => item.size === '0')
+                    .filter(item => item.size === 0)
                     .filter(item => /^[^/]+\/$/.test(item.key))
                     .map(item => ({
                         name: item.key.slice(0, -1),
