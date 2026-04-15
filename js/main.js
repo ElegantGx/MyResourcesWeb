@@ -24,7 +24,7 @@ async function bootstrap() {
     const app = createApp ({
         setup() {
             const rawData = ref(filesList);
-            console.log(rawData.value);
+            console.log(rawData.value.files);
             const currentPath = ref('');
             const gotoFolder = (path) => console.log('进入文件夹:', path);
             const theFolders = computed(() => {
