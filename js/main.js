@@ -24,9 +24,7 @@ async function bootstrap() {
     const app = createApp ({
         setup() {
             const rawData = ref(filesList);
-            console.log(rawData.value.files);
             const currentPath = ref('');
-            const gotoFolder = (path) => console.log('进入文件夹:', path);
             const theFolders = computed(() => {
                 return _.chain(rawData.value.files)
                     .filter(item => item.size === '0')
@@ -37,7 +35,9 @@ async function bootstrap() {
                     }))
                     .value();
             });
-            console.log(theFolders.value);
+            const gotoFolder = (path) => {
+                currentPath.value = path;
+            }
             return {theFolders, gotoFolder, currentPath};
         }
     });
