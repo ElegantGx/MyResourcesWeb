@@ -6,6 +6,8 @@
     <link rel="icon" href="assets/icon/favicon.ico" sizes="any">
     <link rel="apple-touch-icon" href="assets/icon/apple-touch-icon.png">
     <link rel="stylesheet" href="CSS/main.css">
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/lodash@4.17.21/lodash.min.js"></script>
     <script
         defer
         crossorigin="anonymous"
@@ -21,6 +23,7 @@
     </script>
 </head>
 <body>
+    <script type="module" src="js/main.js"></script>
     <main class="container">
         <aside class="file-tree">
             <header class="filetree-header">
@@ -42,13 +45,14 @@
                 <div class="filetree-tree">
                     <p>资源浏览</p>
                     <ul>
-                        <li class="menu-item" data-type="anime">动漫</li>
-                        <li class="menu-item" data-type="diyimages">DIY图片</li>
-                        <li class="menu-item" data-type="pcmaintencetools">电脑管理</li>
-                        <li class="menu-item" data-type="anime">测试</li>
-                        <li class="menu-item" data-type="anime">滚动条</li>
-                        <li class="menu-item" data-type="anime">功能</li>
-                        <li class="menu-item" data-type="anime">成功</li>
+                        <li 
+                            v-for="theFolder in theFolders" 
+                            :key="theFolder.key"
+                            :class="['menu-item', { active: currentPath === theFolder.path }]"
+                            @click="gotoFolder(theFolder.key)"
+                        >
+                            {{ theFolder.name }}
+                        </li>
                     </ul>
                 </div>
             </section>
@@ -62,7 +66,7 @@
         <section class="file-view">
             <header class="filename-view">
                 <div class="filename-show">
-                    <p>home</p>
+                    <p>{{ currentPath ? getFileName(currentPath) : 'Home' }}</p>
                 </div>
                 <div class="filename-search">
                     <div class="search-container">
@@ -72,13 +76,14 @@
             </header>
             <div class="gui">
                 <div class="file-gui">
-                    <div class="file-item">
-                        <img src="assets/icon/filesIcon/folder-closed.svg">
-                        <span>动漫</span>
-                    </div>
-                    <div class="file-item">
-                        <img src="assets/icon/filesIcon/film.svg">
-                        <span>动漫</span>
+                    <div 
+                        v-for="theFile in theFiles" 
+                        :key="theFile.path"
+                        :class="file-item"
+                        @click="getFileList(theFile.path)"
+                    >
+                        <img :src="theFile.key.endsWith('/') ? 'assets/icon/filesIcon/folder-closed.svg' : 'assets/icon/filesIcon/film.svg'">
+                        <span>{{ getFileName(theFile.key) }}</span>
                     </div>
                 </div>
                 <div class="download-gui">
@@ -89,18 +94,17 @@
             <footer class="filepath-view">
                 <div class="filepath-main">
                     <p id="breadcrumb-path">
-                        <span>
-                            <img src="assets/icon/filesIcon/hard-drive.svg">'/
-                        </span>
-                        >
-                        <span>
-                            <img src="assets/icon/filesIcon/folder-open.svg">动漫
-                        </span>
+                        <template v-for="(thePath, index) in thePaths" :key="thePath.path">
+                            <span @click="gotoPath(thePath.path)">
+                                <img :src="index === 0 ? 'assets/icon/filesIcon/hard-drive.svg' : 'assets/icon/filesIcon/folder-open.svg'">
+                                {{ thePath.last }}
+                            </span>
+                            <span v-if="index < thePaths.length - 1"> > </span>
+                        </template>
                     </p>
                 </div>                
             </footer>
         </section>
     </main>
-    <script type="module" src="js/main.js"></script>
 </body>
 </html>
