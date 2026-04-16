@@ -40,7 +40,6 @@ async function bootstrap() {
             const activeDirKey = computed(() => {
                 if (!curPath.value) return '';
                 const nowDir = rootDirs.value.find(d => curPath.value.startsWith(d.key))?.key || '';
-                console.log(nowDir);
                 return nowDir;
             });     
             
