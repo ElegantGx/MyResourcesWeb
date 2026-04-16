@@ -1,7 +1,7 @@
 const _ = window._;
 const { createApp, ref, computed } = window.Vue;
 
-async function getFileList() {
+async function fetchFilesList() {
     await window.Clerk.load();
     const token = await window.Clerk.session.getToken();
     const response = await fetch('https://api.gxweb.top/get-list', {
@@ -20,13 +20,13 @@ async function getFileList() {
 }
 
 async function bootstrap() {
-    const filesList = await getFileList();
+    const filesList = await fetchFilesList();
     const app = createApp ({
         setup() {
-            const rawData = ref(filesList);
-            const currentPath = ref('');
-            const theFolders = computed(() => {
-                return _.chain(rawData.value.files)
+            const filesData = ref(filesList);
+            
+            const rootDirs = computed(() => {
+                return _.chain(filesData.value.files)
                     .filter(item => item.size === '0')
                     .filter(item => /^[^/]+\/$/.test(item.key))
                     .map(item => ({
@@ -35,14 +35,30 @@ async function bootstrap() {
                     }))
                     .value();
             });
-            const gotoFolder = (path) => {
-                currentPath.value = path;
+            const curPath = ref('');
+            
+            const activeDirKey = computed(() => {
+                if (!curPath.value) return '';
+                return 
+                    rootDirs.value.find(d => curPath.value.startsWith(d.key))?.key || '';
+            });
+            
+            const gotoDir = (dirKey) => {
+                curPath = dirKey;
+            };
+            
+            const getTopName = (curPath) => {
+                const topName = trim(curPath);
+                return topName;
+            };
+
+            const trim = (str) => {
+                return str.slice(0, -1);
             }
-            const getPathname = (pathKey) => {
-                const pathname = pathKey.slice(0, -1);
-                return pathname;
-            }
-            return {theFolders, gotoFolder, currentPath, getPathname};
+
+            return {
+                rootDirs, curPath, activeDirKey, gotoDir, getTopName
+            };
         }
     });
     app.mount('.container');

@@ -47,12 +47,12 @@
                     <p>资源浏览</p>
                     <ul>
                         <li 
-                            v-for="theFolder in theFolders" 
-                            :key="theFolder.key"
-                            :class="['menu-item', { selected: currentPath === theFolder.key }]"
-                            @click="gotoFolder(theFolder.key)"
+                            v-for="dir in rootDirs" 
+                            :key="dir.key"
+                            :class="['menu-item', { selected: activeDirKey === dir.key }]"
+                            @click="gotoDir(dir.key)"
                         >
-                            {{ theFolder.name }}
+                            {{ dir.name }}
                         </li>
                     </ul>
                 </div>
@@ -67,7 +67,7 @@
         <section class="file-view">
             <header class="filename-view">
                 <div class="filename-show">
-                    <p>{{ currentPath ? getPathname(currentPath) : 'Home' }}</p>
+                    <p>{{ curPath ? getTopName(curPath) : 'Home' }}</p>
                 </div>
                 <div class="filename-search">
                     <div class="search-container">
@@ -78,10 +78,10 @@
             <div class="gui">
                 <div class="file-gui">
                     <div 
-                        v-for="theFile in theFiles" 
-                        :key="theFile.path"
-                        :class="file-item"
-                        @click="getFileList(theFile.path)"
+                        v-for="theFile in theFiles"
+                        :key="theFile.key"
+                        :class="['file-item', {selected: currentFile == theFile.key}]"
+                        @click="gotoFile(theFile.path)"
                     >
                         <img :src="theFile.key.endsWith('/') ? 'assets/icon/filesIcon/folder-closed.svg' : 'assets/icon/filesIcon/film.svg'">
                         <span>{{ getFileName(theFile.key) }}</span>
