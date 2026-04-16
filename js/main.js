@@ -47,14 +47,14 @@ async function bootstrap() {
                 curPath = dirKey;
             };
             
+            const trim = (str) => {
+                return str.slice(0, -1);
+            }
+
             const getTopName = (curPath) => {
                 const topName = trim(curPath);
                 return topName;
             };
-
-            const trim = (str) => {
-                return str.slice(0, -1);
-            }
 
             return {
                 rootDirs, curPath, activeDirKey, gotoDir, getTopName
