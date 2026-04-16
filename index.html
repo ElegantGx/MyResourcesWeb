@@ -49,7 +49,7 @@
                         <li 
                             v-for="dir in rootDirs" 
                             :key="dir.key"
-                            :class="['menu-item', { selected: activeDirKey == dir.key }]"
+                            :class="['menu-item', { selected: activeDirKey === dir.key }]"
                             @click="gotoDir(dir.key)"
                         >
                             {{ dir.name }}
