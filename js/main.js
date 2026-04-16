@@ -44,7 +44,7 @@ async function bootstrap() {
             });
             
             const gotoDir = (dirKey) => {
-                curPath = dirKey;
+                curPath.value = dirKey;
             };
             
             const trim = (str) => {
