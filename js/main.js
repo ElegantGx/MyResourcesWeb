@@ -52,7 +52,8 @@ async function bootstrap() {
             }
 
             const getTopName = (curPath) => {
-                const topName = trim(curPath);
+                const match = curPath.match(/([^/]+)\/$/);
+                const topName = match[1] || 'Home';
                 return topName;
             };
 
