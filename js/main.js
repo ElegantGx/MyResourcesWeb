@@ -39,9 +39,10 @@ async function bootstrap() {
             
             const activeDirKey = computed(() => {
                 if (!curPath.value) return '';
-                return 
-                    rootDirs.value.find(d => curPath.value.startsWith(d.key))?.key || '';
-            });
+                const nowDir = rootDirs.value.find(d => curPath.value.startsWith(d.key))?.key || '';
+                console.log(nowDir);
+                return nowDir;
+            });     
             
             const gotoDir = (dirKey) => {
                 curPath.value = dirKey;
